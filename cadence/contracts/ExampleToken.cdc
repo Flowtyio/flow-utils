@@ -1,6 +1,10 @@
 import FungibleToken from "./FungibleToken.cdc"
 
 pub contract ExampleToken: FungibleToken {
+    pub let ReceiverPath: PublicPath
+    pub let BalancePath: PublicPath
+    pub let StoragePath: StoragePath
+    pub let AdminPath: StoragePath
 
     /// Total supply of ExampleTokens in existence
     pub var totalSupply: UFix64
@@ -185,30 +189,34 @@ pub contract ExampleToken: FungibleToken {
 
     init() {
         self.totalSupply = 1000.0
+        self.StoragePath = /storage/exampleTokenVault
+        self.ReceiverPath = /public/exampleTokenReceiver
+        self.BalancePath = /public/exampleTokenBalance
+        self.AdminPath = /storage/exampleTokenAdmin
 
         // Create the Vault with the total supply of tokens and save it in storage
         //
         let vault <- create Vault(balance: self.totalSupply)
-        self.account.save(<-vault, to: /storage/exampleTokenVault)
+        self.account.save(<-vault, to: self.StoragePath)
 
         // Create a public capability to the stored Vault that only exposes
         // the `deposit` method through the `Receiver` interface
         //
         self.account.link<&{FungibleToken.Receiver}>(
-            /public/exampleTokenReceiver,
-            target: /storage/exampleTokenVault
+            self.ReceiverPath,
+            target: self.StoragePath
         )
 
         // Create a public capability to the stored Vault that only exposes
         // the `balance` field through the `Balance` interface
         //
         self.account.link<&ExampleToken.Vault{FungibleToken.Balance}>(
-            /public/exampleTokenBalance,
-            target: /storage/exampleTokenVault
+            self.BalancePath,
+            target: self.StoragePath
         )
 
         let admin <- create Administrator()
-        self.account.save(<-admin, to: /storage/exampleTokenAdmin)
+        self.account.save(<-admin, to: self.AdminPath)
 
         // Emit an event that shows that the contract was initialized
         //
